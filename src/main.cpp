@@ -1,68 +1,52 @@
 #include <Arduino.h>
+#include <RH_ASK.h>
+#include <SPI.h>
 
-#define VRX_PIN  A1 // Arduino pin connected to VRX pin
-#define VRY_PIN  A0 // Arduino pin connected to VRY pin
+#define VRX_PIN A0
 
-#define LEFT_THRESHOLD  400
-#define RIGHT_THRESHOLD 800
-#define UP_THRESHOLD    400
-#define DOWN_THRESHOLD  800
+int xValue = 0;
 
-#define COMMAND_NO     0x00
-#define COMMAND_LEFT   0x01
-#define COMMAND_RIGHT  0x02
-#define COMMAND_UP     0x04
-#define COMMAND_DOWN   0x08
+bool motorDirectionForward = true;
+short motorSpeed = 0;
 
-int xValue = 0 ; // To store value of the X axis
-int yValue = 0 ; // To store value of the Y axis
-int command = COMMAND_NO;
+short joystickMidX = 457;
+short joystickMaxX = 905;
+
+// Data pin connects to pin 12
+RH_ASK rf_driver;
 
 void setup() {
-  Serial.begin(9600) ;
+  Serial.begin(115200);
+
+  pinMode(VRX_PIN, INPUT);
+
+  rf_driver.init();
 }
 
 void loop() {
-  // read analog X and Y analog values
+  // "DIRECTION_FORWARD MOTOR_SPEED"
+  // Message to send "1 200"
+  String controlData = "";
+
   xValue = analogRead(VRX_PIN);
-  yValue = analogRead(VRY_PIN);
 
-  // converts the analog value to commands
-  // reset commands
-  command = COMMAND_NO;
-
-  // check left/right commands
-  if (xValue < LEFT_THRESHOLD)
-    command = command | COMMAND_LEFT;
-  else if (xValue > RIGHT_THRESHOLD)
-    command = command | COMMAND_RIGHT;
-
-  // check up/down commands
-  if (yValue < UP_THRESHOLD)
-    command = command | COMMAND_UP;
-  else if (yValue > DOWN_THRESHOLD)
-    command = command | COMMAND_DOWN;
-
-  // NOTE: AT A TIME, THERE MAY BE NO COMMAND, ONE COMMAND OR TWO COMMANDS
-
-  // print command to serial and process command
-  if (command & COMMAND_LEFT) {
-    Serial.println("COMMAND LEFT");
-    // TODO: add your task here
+  if (xValue >= joystickMidX + 2) {
+    motorSpeed = map(xValue, joystickMidX + 2, joystickMaxX, 0, 255);
+    motorDirectionForward = true;
+  } else if (xValue < joystickMidX - 2) {
+    motorSpeed = map(xValue, 0, joystickMidX - 2, 255, 0);
+    motorDirectionForward = false;
+  } else {
+    motorSpeed = 0;
   }
 
-  if (command & COMMAND_RIGHT) {
-    Serial.println("COMMAND RIGHT");
-    // TODO: add your task here
-  }
+  controlData += (motorDirectionForward ? "1 " : "0 ");
+  controlData += String(motorSpeed);
 
-  if (command & COMMAND_UP) {
-    Serial.println("COMMAND UP");
-    // TODO: add your task here
-  }
-
-  if (command & COMMAND_DOWN) {
-    Serial.println("COMMAND DOWN");
-    // TODO: add your task here
-  }
+  rf_driver.send((uint8_t *)controlData.c_str(), controlData.length());
+  rf_driver.waitPacketSent();
+  Serial.print("Sending: ");
+  Serial.print(controlData);
+  Serial.print(" Raw Data: ");
+  Serial.println(xValue);
 }
