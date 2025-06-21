@@ -1,32 +1,7 @@
 #include <Arduino.h>
-#include <RH_ASK.h>
-#include <SPI.h>
 
-#define VRX_PIN A0
-#define VRY_PIN A1
-
-short dirValue = 0;
-short throttleValue = 0;
-
-byte NEUTRAL_ALLOWANCE = 4;
-
-String controlData;
-
-// 1 for forward, 0 for stop, -1 for backward
-int8_t leftMotorDirectionForward = 0;
-short leftMotorSpeed = 0;
-// 1 for forward, 0 for stop, -1 for backward
-int8_t rightMotorDirectionForward = 0;
-short rightMotorSpeed = 0;
-short motorMaxSpeed = 255;
-
-short joystickMidX = 458;
-short joystickMaxX = 910;
-short joystickMidY = 438;
-short joystickMaxY = 910;
-
-// Data pin connects to pin 12
-RH_ASK rf_driver;
+#include "comm.hpp"
+#include "controller.hpp"
 
 void setup() {
   Serial.begin(115200);
@@ -34,7 +9,28 @@ void setup() {
   pinMode(VRX_PIN, INPUT);
   pinMode(VRY_PIN, INPUT);
 
-  rf_driver.init();
+  if (!rf_driver.init()) {
+    Serial.println("RF driver initialization failed!");
+    while (1);  // Halt the program if RF driver initialization fails
+  }
+
+#if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
+  if (!rf_driver.setChannel(CONTROLLER_RADIO_CHANNEL)) {
+    Serial.println("Failed to set radio channel");
+    while (1);  // Halt if setting the channel fails
+  } else {
+    Serial.print("Radio channel set to: '");
+    Serial.print(CONTROLLER_RADIO_CHANNEL);
+    Serial.println("'");
+  }
+
+  if (!rf_driver.setRF(RH_NRF24::DataRate250kbps,
+                       RH_NRF24::TransmitPower0dBm)) {
+    Serial.println("Failed to set data rate and power");
+  } else {
+    Serial.println("Data rate set to 250kbps and power to 0dBm");
+  }
+#endif  // CONTROLLER_COMM_MODULE
 }
 
 void loop() {
@@ -50,14 +46,16 @@ void loop() {
   // both motors moving forward if throttle Value is the only one that changed
   if (throttleValue > joystickMidY + NEUTRAL_ALLOWANCE) {
     leftMotorSpeed = map(throttleValue, joystickMidY + 2, joystickMaxY, 0, 255);
-    rightMotorSpeed =
-        map(throttleValue, joystickMidY + NEUTRAL_ALLOWANCE, joystickMaxY, 0, 255);
+    rightMotorSpeed = map(throttleValue, joystickMidY + NEUTRAL_ALLOWANCE,
+                          joystickMaxY, 0, 255);
 
     leftMotorDirectionForward = 1;
     rightMotorDirectionForward = 1;
   } else if (throttleValue < joystickMidY - NEUTRAL_ALLOWANCE) {
-    leftMotorSpeed = map(throttleValue, 0, joystickMidY - NEUTRAL_ALLOWANCE, 255, 0);
-    rightMotorSpeed = map(throttleValue, 0, joystickMidY - NEUTRAL_ALLOWANCE, 255, 0);
+    leftMotorSpeed =
+        map(throttleValue, 0, joystickMidY - NEUTRAL_ALLOWANCE, 255, 0);
+    rightMotorSpeed =
+        map(throttleValue, 0, joystickMidY - NEUTRAL_ALLOWANCE, 255, 0);
 
     leftMotorDirectionForward = -1;
     rightMotorDirectionForward = -1;
@@ -74,7 +72,8 @@ void loop() {
         map(dirValue, joystickMidX + 2, joystickMaxX, 0, 255);
     rightMotorTurningSpeed = 0;
   } else if (dirValue < joystickMidX - NEUTRAL_ALLOWANCE) {
-    rightMotorTurningSpeed = map(dirValue, joystickMidX - NEUTRAL_ALLOWANCE, 0, 0, 255);
+    rightMotorTurningSpeed =
+        map(dirValue, joystickMidX - NEUTRAL_ALLOWANCE, 0, 0, 255);
     leftMotorTurningSpeed = 0;
   } else {
     leftMotorTurningSpeed = 0;
