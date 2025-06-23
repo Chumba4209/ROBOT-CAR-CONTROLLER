@@ -9,27 +9,24 @@ void setup() {
   pinMode(VRX_PIN, INPUT);
   pinMode(VRY_PIN, INPUT);
 
+#if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_RF433
   if (!rf_driver.init()) {
+#elif CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
+  if (!rf_driver.begin()) {
+#endif  // CONTROLLER_COMM_MODULE
     Serial.println("RF driver initialization failed!");
     while (1);  // Halt the program if RF driver initialization fails
+  } else {
+    Serial.println("RF driver initialized successfully!");
   }
 
 #if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
-  if (!rf_driver.setChannel(CONTROLLER_RADIO_CHANNEL)) {
-    Serial.println("Failed to set radio channel");
-    while (1);  // Halt if setting the channel fails
-  } else {
-    Serial.print("Radio channel set to: '");
-    Serial.print(CONTROLLER_RADIO_CHANNEL);
-    Serial.println("'");
-  }
-
-  if (!rf_driver.setRF(RH_NRF24::DataRate250kbps,
-                       RH_NRF24::TransmitPower0dBm)) {
-    Serial.println("Failed to set data rate and power");
-  } else {
-    Serial.println("Data rate set to 250kbps and power to 0dBm");
-  }
+  rf_driver.openWritingPipe(address);
+  // The lowest data rate value for more stable communication
+  rf_driver.setDataRate(RF24_250KBPS);
+  rf_driver.setPALevel(RF24_PA_MIN);
+  // Set module as transmitter
+  rf_driver.stopListening();
 #endif  // CONTROLLER_COMM_MODULE
 }
 
@@ -96,9 +93,31 @@ void loop() {
                 String(rightMotorDirectionForward) + "RS" +
                 String(rightMotorSpeed);
 
+#if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_RF433
   rf_driver.send((uint8_t *)controlData.c_str(), controlData.length());
   rf_driver.waitPacketSent();
+#elif CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
+  if (role) {
+    unsigned long start_timer = micros();  // start the timer
+    char txtMessage[32];
+    controlData.toCharArray(txtMessage, sizeof(txtMessage));
+    // transmit & save the report
+    bool report = rf_driver.write(txtMessage, strlen(txtMessage) + 1);
+    // end the timer
+    unsigned long end_timer = micros();
 
+    if (report) {
+      Serial.print(F("Transmission successful! "));
+      Serial.print(F("Time to transmit = "));
+      Serial.print(end_timer - start_timer);
+      Serial.print(F(" us. Sent: "));
+      Serial.println(controlData);
+    } else {
+      // payload was not delivered
+      Serial.println(F("Transmission failed or timed out"));
+    }
+  }
+#endif  // CONTROLLER_COMM_MODULE
   // print all variables to serial monitor
   Serial.print("CD: '");
   Serial.print(controlData);

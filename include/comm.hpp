@@ -3,26 +3,43 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#include "config.hpp"
+
 #define CONTROLLER_COMM_MODULE_RF433 433
 #define CONTROLLER_COMM_MODULE_NRF24 24
 
+#if CONTROLLER_IS_JOY_NRF_SHIELD
 #ifndef CONTROLLER_COMM_MODULE
-// Change this to select the communication module
+#define CONTROLLER_COMM_MODULE CONTROLLER_COMM_MODULE_NRF24
+#endif  // CONTROLLER_COMM_MODULE
+#else
+#ifndef CONTROLLER_COMM_MODULE
+// Change this to the desired communication module
 #define CONTROLLER_COMM_MODULE CONTROLLER_COMM_MODULE_RF433
-#endif
+#endif  // CONTROLLER_COMM_MODULE
+#endif  // CONTROLLER_IS_JOY_NRF_SHIELD
 
 #if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_RF433
 #include <RH_ASK.h>
-extern RH_ASK rf_driver;
 #define MAX_RECV_MESSAGE_LENGTH RH_ASK_MAX_MESSAGE_LEN
+
+extern RH_ASK rf_driver;
 #elif CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
-#include <RH_NRF24.h>
-extern RH_NRF24 rf_driver;
+#include <RHSoftwareSPI.h>
+#include <RF24.h>
+#include <nRF24L01.h>
 #define MAX_RECV_MESSAGE_LENGTH RH_NRF24_MAX_MESSAGE_LEN
 #define CONTROLLER_RADIO_CHANNEL 1
+
+// extern RH_NRF24 rf_driver;
+extern RF24 rf_driver;
 #else
 #error \
     "Unsupported communication module! Please define CONTROLLER_COMM_MODULE to either CONTROLLER_COMM_MODULE_RF433 or CONTROLLER_COMM_MODULE_NRF24."
-#endif
+#endif  // CONTROLLER_COMM_MODULE
 
 extern String controlData;
+
+#if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
+extern const uint8_t address[];
+#endif  // CONTROLLER_COMM_MODULE_NRF24
