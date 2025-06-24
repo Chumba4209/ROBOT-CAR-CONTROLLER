@@ -35,3 +35,6 @@ extern short leftMotorSpeed;
 extern int8_t rightMotorDirectionForward;
 extern short rightMotorSpeed;
 extern short motorMaxSpeed;
+
+// Hooting
+extern bool hoot;

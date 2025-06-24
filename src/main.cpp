@@ -9,6 +9,8 @@ void setup() {
   pinMode(VRX_PIN, INPUT);
   pinMode(VRY_PIN, INPUT);
 
+  pinMode(CONTROLLER_HOOTING_PIN, INPUT);
+
 #if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_RF433
   if (!rf_driver.init()) {
 #elif CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_NRF24
@@ -31,8 +33,10 @@ void setup() {
 }
 
 void loop() {
-  // "CD: 'LD1LS200RD1RS150'" is the format of the control data
+  // "CD: 'LD1LS200RD1RS150H1'" is the format of the control data
   // LD1LS200 means left motor direction is forward (1) and speed is 200
+  // RD1RS150 means right motor direction is forward (1) and speed is 150
+  // H1 means hooting is active (1)
   controlData = "";
 
   dirValue = analogRead(VRX_PIN);
@@ -88,10 +92,16 @@ void loop() {
     rightMotorSpeed *= -1;
   }
 
+  // Hooting
+  hoot = digitalRead(CONTROLLER_HOOTING_PIN);
+  if (CONTROLLER_HOOTING_ACTIVE_LOW) {
+    hoot = !hoot;
+  }
+
   controlData = "LD" + String(leftMotorDirectionForward) + "LS" +
                 String(leftMotorSpeed) + "RD" +
                 String(rightMotorDirectionForward) + "RS" +
-                String(rightMotorSpeed);
+                String(rightMotorSpeed) + "H" + String(hoot);
 
 #if CONTROLLER_COMM_MODULE == CONTROLLER_COMM_MODULE_RF433
   rf_driver.send((uint8_t *)controlData.c_str(), controlData.length());

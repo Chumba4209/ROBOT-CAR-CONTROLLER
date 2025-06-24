@@ -10,3 +10,6 @@ short leftMotorSpeed = 0;
 int8_t rightMotorDirectionForward = 0;
 short rightMotorSpeed = 0;
 short motorMaxSpeed = 255;
+
+// Hooting
+bool hoot = false;
