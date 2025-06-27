@@ -98,13 +98,6 @@ void loop() {
     hoot = !hoot;
   }
 
-  // It was moving in the opposite direction, so swap the speeds
-  if (leftMotorSpeed != rightMotorSpeed) {
-    short temp = leftMotorSpeed;
-    leftMotorSpeed = rightMotorSpeed;
-    rightMotorSpeed = temp;
-  }
-
   controlData = "LD" + String(leftMotorDirectionForward) + "LS" +
                 String(leftMotorSpeed) + "RD" +
                 String(rightMotorDirectionForward) + "RS" +
